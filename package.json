@@ -1,0 +1,23 @@
+{
+  "name": "botbuild-manager",
+  "version": "2.0.0",
+  "description": "Bot Build APK Manager - Flutter & Android via GitHub Actions + GramJS + AdmZip",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "node test.js"
+  },
+  "author": "Cidzz",
+  "license": "ISC",
+  "dependencies": {
+    "node-telegram-bot-api": "^0.66.0",
+    "telegram": "latest",
+    "adm-zip": "^0.5.16",
+    "ssh2": "^1.16.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
