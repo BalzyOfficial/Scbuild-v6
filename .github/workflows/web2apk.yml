@@ -1,0 +1,57 @@
+name: Build APK (Web2APK workflow)
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag containing the uploaded project ZIP'
+        required: true
+        type: string
+      build_type:
+        description: 'Build target'
+        required: false
+        default: web2apk
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Download uploaded project ZIP from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          release_json="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
+          asset_url="$(printf '%s' "$release_json" | jq -r '.assets[] | select(.name | endswith(".zip")) | .url' | head -n1)"
+          test -n "$asset_url" && test "$asset_url" != "null" || { echo 'ZIP asset tidak ditemukan pada release tag'; exit 1; }
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/octet-stream' "$asset_url" -o project.zip
+          mkdir project && unzip -q project.zip -d project
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Locate Flutter project
+        id: project
+        run: |
+          set -euo pipefail
+          pubspec="$(find project -name pubspec.yaml -type f -print -quit)"
+          test -n "$pubspec" || { echo 'pubspec.yaml tidak ditemukan dalam ZIP'; exit 1; }
+          echo "dir=$(dirname "$pubspec")" >> "$GITHUB_OUTPUT"
+      - name: Install dependencies and build APK
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          flutter pub get
+          flutter build apk --release
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scbuild-Web2APK
+          path: ${{ steps.project.outputs.dir }}/build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+          retention-days: 14
